@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f8f7">
+  <meta name="description" content="BTEB পলিটেকনিক পরীক্ষার ফলাফল খুঁজুন এবং PDF থেকে ফলাফল সংরক্ষণ করুন।">
+  <title>BTEB রেজাল্ট | পলিটেকনিক</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <script src="/js/app.js" defer></script>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="BTEB রেজাল্ট হোম">
+        <span class="brand-mark" aria-hidden="true">B</span>
+        <span class="brand-copy">
+          <strong>BTEB ফলাফল</strong>
+          <small>পলিটেকনিক রেজাল্ট পোর্টাল</small>
+        </span>
+      </a>
+      <span class="header-tag"><span class="status-dot"></span> ফলাফল অনুসন্ধান</span>
+    </header>
+
+    <section class="hero" aria-labelledby="pageTitle">
+      <div class="hero-copy">
+        <p class="eyebrow">বাংলাদেশ কারিগরি শিক্ষা বোর্ড</p>
+        <h1 id="pageTitle">আপনার ফলাফল,<br><span>এক জায়গায়।</span></h1>
+        <p class="hero-description">রোল নম্বর দিয়ে সব সেমিস্টারের ফলাফল দেখুন। অ্যাডমিন PDF আপলোড করে ফলাফল সংরক্ষণ করতে পারবেন।</p>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="art-orbit orbit-one"></div>
+        <div class="art-orbit orbit-two"></div>
+        <div class="art-paper">
+          <span class="paper-seal">B</span>
+          <i></i><i></i><i></i>
+          <b>RESULT</b>
+          <span class="paper-check">✓</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="workspace">
+      <section class="panel upload-panel" aria-labelledby="uploadTitle">
+        <div class="panel-heading">
+          <span class="section-icon upload-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7 9m5-5 5 5M5 15v4h14v-4"/></svg>
+          </span>
+          <div>
+            <p class="section-kicker">অ্যাডমিন</p>
+            <h2 id="uploadTitle">PDF থেকে ফলাফল ইমপোর্ট</h2>
+          </div>
+        </div>
+        <p class="panel-description">PDF থেকে ফলাফল পড়ে স্বয়ংক্রিয়ভাবে ডেটাবেজে সংরক্ষণ করুন।</p>
+
+        <form id="loginForm" class="form-stack">
+          <div class="field">
+            <label for="loginEmail">অ্যাডমিন ইমেইল</label>
+            <input id="loginEmail" type="email" autocomplete="username" placeholder="আপনার অ্যাডমিন ইমেইল" required>
+          </div>
+          <div class="field">
+            <label for="loginPassword">পাসওয়ার্ড</label>
+            <input id="loginPassword" type="password" autocomplete="current-password" placeholder="আপনার পাসওয়ার্ড" required>
+          </div>
+          <button id="loginBtn" class="button button-primary" type="submit">লগইন করুন</button>
+        </form>
+        <div id="loginOut" aria-live="polite"></div>
+
+        <div id="adminArea" hidden>
+          <div class="account-bar">
+            <p class="account-email"><span class="status-dot"></span> লগইন: <span id="adminEmail"></span></p>
+            <button id="logoutBtn" class="button button-quiet" type="button">লগআউট</button>
+          </div>
+
+          <form id="uploadForm" class="form-stack">
+            <div class="field">
+              <label for="uploadCurriculum">কারিকুলাম</label>
+              <select id="uploadCurriculum" required>
+                <option value="">কারিকুলাম বেছে নিন</option>
+                <option value="ডিপ্লোমা ইন ইঞ্জিনিয়ারিং">ডিপ্লোমা ইন ইঞ্জিনিয়ারিং</option>
+                <option value="ডিপ্লোমা ইন এগ্রিকালচার/ফিসারিজ/লাইভস্টক/ফরেস্ট্রি">ডিপ্লোমা ইন এগ্রিকালচার/ফিসারিজ/লাইভস্টক/ফরেস্ট্রি</option>
+                <option value="ডিপ্লোমা ইন টেক্সটাইল ইঞ্জিনিয়ারিং">ডিপ্লোমা ইন টেক্সটাইল ইঞ্জিনিয়ারিং</option>
+              </select>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="uploadSemester">সেমিস্টার</label>
+                <select id="uploadSemester" required>
+                  <option value="">সেমিস্টার বেছে নিন</option>
+                  <option value="১ম সেমিস্টার">১ম সেমিস্টার</option>
+                  <option value="২য় সেমিস্টার">২য় সেমিস্টার</option>
+                  <option value="৩য় সেমিস্টার">৩য় সেমিস্টার</option>
+                  <option value="৪র্থ সেমিস্টার">৪র্থ সেমিস্টার</option>
+                  <option value="৫ম সেমিস্টার">৫ম সেমিস্টার</option>
+                  <option value="৬ষ্ঠ সেমিস্টার">৬ষ্ঠ সেমিস্টার</option>
+                  <option value="৭ম সেমিস্টার">৭ম সেমিস্টার</option>
+                  <option value="৮ম সেমিস্টার">৮ম সেমিস্টার</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="uploadSession">একাডেমিক সেশন</label>
+                <select id="uploadSession" required>
+                  <option value="">সেশন বেছে নিন</option>
+                  <option value="2026-27">২০২৬-২৭</option>
+                  <option value="2025-26">২০২৫-২৬</option>
+                  <option value="2024-25">২০২৪-২৫</option>
+                  <option value="2023-24">২০২৩-২৪</option>
+                  <option value="2022-23">২০২২-২৩</option>
+                  <option value="2021-22">২০২১-২২</option>
+                  <option value="2020-21">২০২০-২১</option>
+                  <option value="2019-20">২০১৯-২০</option>
+                  <option value="2018-19">২০১৮-১৯</option>
+                  <option value="2017-18">২০১৭-১৮</option>
+                </select>
+              </div>
+            </div>
+            <p class="upload-guide">ইনস্টিটিউটের নাম, কোড ও ফল প্রকাশের তারিখ PDF থেকে নেওয়া হবে।</p>
+            <div class="field">
+              <label for="pdfFile">রেজাল্ট PDF</label>
+              <input class="file-input" id="pdfFile" name="pdf" type="file" accept=".pdf,application/pdf" required>
+              <small class="field-hint">সর্বোচ্চ ২০ MB · Text-based PDF সমর্থিত</small>
+            </div>
+            <button id="uploadBtn" class="button button-primary" type="submit">PDF আপলোড ও ইমপোর্ট</button>
+          </form>
+        </div>
+
+        <div id="uploadProgress" class="upload-progress" hidden aria-live="polite">
+          <div class="progress-label"><span>প্রক্রিয়া চলছে</span><span class="progress-spark"></span></div>
+          <progress id="uploadMeter" max="100" value="0"></progress>
+          <p id="uploadStatus"></p>
+        </div>
+        <div id="uploadOut" aria-live="polite"></div>
+      </section>
+
+      <section class="panel search-panel" aria-labelledby="searchTitle">
+        <div class="panel-heading">
+          <span class="section-icon search-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/></svg>
+          </span>
+          <div>
+            <p class="section-kicker">সবার জন্য</p>
+            <h2 id="searchTitle">রেজাল্ট খুঁজুন</h2>
+          </div>
+        </div>
+        <p class="panel-description">কারিকুলাম ও রোল নম্বর দিয়ে সব সেমিস্টারের ফলাফল দেখুন।</p>
+        <form id="f" class="form-stack search-form">
+          <div class="field">
+            <label for="searchCurriculum">কারিকুলাম নির্বাচন</label>
+            <select id="searchCurriculum" required>
+              <option value="">কারিকুলাম বেছে নিন</option>
+              <option value="ডিপ্লোমা ইন ইঞ্জিনিয়ারিং">ডিপ্লোমা ইন ইঞ্জিনিয়ারিং</option>
+              <option value="ডিপ্লোমা ইন এগ্রিকালচার/ফিসারিজ/লাইভস্টক/ফরেস্ট্রি">ডিপ্লোমা ইন এগ্রিকালচার/ফিসারিজ/লাইভস্টক/ফরেস্ট্রি</option>
+              <option value="ডিপ্লোমা ইন টেক্সটাইল ইঞ্জিনিয়ারিং">ডিপ্লোমা ইন টেক্সটাইল ইঞ্জিনিয়ারিং</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="roll">রোল নম্বর</label>
+            <input id="roll" inputmode="numeric" maxlength="6" pattern="[0-9০-৯]{6}" placeholder="যেমন: ১২৩৪৫৬" autocomplete="off" required>
+          </div>
+          <button id="btn" class="button button-search" type="submit">
+            <span>সব ফলাফল দেখুন</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+          </button>
+        </form>
+        <div id="out" aria-live="polite"></div>
+      </section>
+    </div>
+
+    <footer class="site-footer">
+      <span class="footer-mark">B</span>
+      <p>এটি অনানুষ্ঠানিক রেজাল্ট দেখার টুল। চূড়ান্ত ফলাফলের জন্য <a href="https://bteb.gov.bd" target="_blank" rel="noopener">BTEB-র অফিসিয়াল ওয়েবসাইট</a> দেখুন।</p>
+      <span class="footer-year">BTEB RESULT PORTAL</span>
+    </footer>
+  </main>
+</body>
+</html>
