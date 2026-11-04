@@ -10,6 +10,7 @@ const rateLimit = require("express-rate-limit");
 const { MongoClient } = require("mongodb");
 const multer = require("multer");
 const { createResultUpdate } = require("./result-update");
+const { getVisibleSessions, sortResults } = require("./result-query");
 
 const MAX_PDF_SIZE = 20 * 1024 * 1024;
 const PDF_PARSE_TIMEOUT_MS = 10 * 60 * 1000;
@@ -38,6 +39,8 @@ const academicSessions = new Set([
   "2017-18", "2018-19", "2019-20", "2020-21", "2021-22",
   "2022-23", "2023-24", "2024-25", "2025-26", "2026-27",
 ]);
+const firstVisibleResultSession = "2022-23";
+const visibleResultSessions = getVisibleSessions([...academicSessions], firstVisibleResultSession);
 
 if (!process.env.MONGO_URI) {
   console.error("MONGO_URI পাওয়া যায়নি। .env ফাইলে দিন।");
@@ -68,7 +71,13 @@ if (process.env.NODE_ENV === "production") {
 const app = express();
 app.set("trust proxy", 1); // Render/Railway-তে সঠিক IP পেতে
 app.use(cors());
-app.use(rateLimit({ windowMs: 60_000, max: 120 }));
+app.use(rateLimit({
+  windowMs: 60_000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "অনেক অনুরোধ করা হয়েছে। একটু পরে আবার চেষ্টা করুন।" },
+}));
 app.use(express.json({ limit: "1mb" }));
 const loginLimiter = rateLimit({
   windowMs: 15 * 60_000,
@@ -76,6 +85,18 @@ const loginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "অনেকবার চেষ্টা করা হয়েছে। ১৫ মিনিট পরে আবার চেষ্টা করুন।" },
+});
+const resultsApiLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: {
+      code: "RATE_LIMITED",
+      message: "এক মিনিটে API ব্যবহারের সীমা অতিক্রম হয়েছে। পরে আবার চেষ্টা করুন।",
+    },
+  },
 });
 
 const client = new MongoClient(process.env.MONGO_URI);
@@ -340,7 +361,7 @@ app.post("/upload", requireAdmin, allowSingleUpload, (req, res, next) => {
 
     uploadStatus = { ...uploadStatus, phase: "complete", records: records.length };
     res.json({
-      message: "PDF থেকে রেজাল্ট JSON-এ রূপান্তর করে MongoDB-তে সংরক্ষণ করা হয়েছে।",
+      message: "PDF থেকে ফলাফল পড়ে তথ্যভান্ডারে সংরক্ষণ করা হয়েছে।",
       exam,
       academicSession,
       institutionCount: new Set(
@@ -507,41 +528,74 @@ function runParser(pdfPath, jsonPath, semesterIndex, academicSession) {
 }
 
 // কারিকুলাম ও রোল নম্বর দিয়ে সব semester/session-এর রেজাল্ট
-app.get("/results", async (req, res) => {
+async function getResults(req, res, versioned = false) {
+  res.set("Cache-Control", "no-store");
   const { roll, curriculum } = req.query;
   if (!/^\d{6}$/.test(roll || "") || !curricula.has(curriculum)) {
-    return res.status(400).json({ error: "সঠিক কারিকুলাম বেছে নিয়ে ৬ সংখ্যার রোল নম্বর দিন।" });
+    const message = "সঠিক শিক্ষাক্রম বেছে নিয়ে ৬ সংখ্যার রোল নম্বর দিন।";
+    return res.status(400).json(versioned
+      ? { error: { code: "INVALID_SEARCH", message } }
+      : { error: message });
   }
   try {
     const legacyExamPrefix = new RegExp(`^${curriculum.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s-`);
+    const legacySessionSuffix = new RegExp(` - (${visibleResultSessions.join("|")})$`);
     const results = await col.find(
       {
         roll: String(roll),
-        $or: [
-          { curriculum: String(curriculum) },
-          { exam: { $regex: legacyExamPrefix } },
+        $and: [
+          {
+            $or: [
+              { curriculum: String(curriculum) },
+              { exam: { $regex: legacyExamPrefix } },
+            ],
+          },
+          {
+            $or: [
+              { academicSession: { $in: visibleResultSessions } },
+              {
+                academicSession: { $in: [null, ""] },
+                exam: { $regex: legacySessionSuffix },
+              },
+            ],
+          },
         ],
       },
       { projection: { _id: 0 } }
-    ).toArray();
-    if (!results.length) return res.status(404).json({ error: "এই কারিকুলামে রেজাল্ট পাওয়া যায়নি।" });
-    const getSemesterIndex = (result) => {
-      const semester = result.semester || [...semesters].find((item) =>
-        String(result.exam || "").startsWith(`${curriculum} - ${item} -`)
-      );
-      return semesterIndices.get(semester) || Number.MAX_SAFE_INTEGER;
-    };
-    results.sort((left, right) =>
-      getSemesterIndex(left) - getSemesterIndex(right) ||
-      String(right.academicSession || "").localeCompare(String(left.academicSession || "")) ||
-      String(left.exam || "").localeCompare(String(right.exam || ""))
-    );
+    ).maxTimeMS(5000).toArray();
+    if (!results.length) {
+      const message = "এই শিক্ষাক্রমে কোনো ফলাফল পাওয়া যায়নি।";
+      return res.status(404).json(versioned
+        ? { error: { code: "RESULTS_NOT_FOUND", message } }
+        : { error: message });
+    }
+    sortResults(results, curriculum, [...semesters]);
+    if (versioned) {
+      return res.json({
+        data: results,
+        meta: {
+          version: "1",
+          roll: String(roll),
+          curriculum: String(curriculum),
+          count: results.length,
+          sessionFrom: firstVisibleResultSession,
+          sessionThrough: visibleResultSessions.at(-1),
+        },
+      });
+    }
     res.json(results);
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "সার্ভারে সমস্যা হয়েছে" });
+    console.error("Result search failed:", e);
+    const message = "সার্ভারে সমস্যা হয়েছে।";
+    const timedOut = e.code === 50;
+    res.status(timedOut ? 503 : 500).json(versioned
+      ? { error: { code: timedOut ? "SEARCH_TIMEOUT" : "INTERNAL_ERROR", message } }
+      : { error: message });
   }
-});
+}
+
+app.get("/results", (req, res) => getResults(req, res));
+app.get("/api/v1/results", resultsApiLimiter, (req, res) => getResults(req, res, true));
 
 app.use((error, req, res, next) => {
   if (req.path === "/upload") {
@@ -564,7 +618,13 @@ const webDir = path.join(__dirname, "..", "web");
 if (fs.existsSync(webDir)) app.use(express.static(webDir));
 
 client.connect().then(() => {
-  return col.createIndex({ roll: 1, exam: 1 }, { unique: true });
+  return Promise.all([
+    col.createIndex({ roll: 1, exam: 1 }, { unique: true }),
+    col.createIndex(
+      { roll: 1, curriculum: 1, semester: -1, academicSession: -1 },
+      { name: "results_roll_curriculum_semester_session" }
+    ),
+  ]);
 }).then(() => {
   const port = process.env.PORT || 3000;
   app.listen(port, () => console.log(`সার্ভার চালু: http://localhost:${port}`));

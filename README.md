@@ -1,8 +1,65 @@
 # BTEB পলিটেকনিক রেজাল্ট অ্যাপ
 
-Browser থেকে PDF আপলোড করলে Python parser PDF থেকে ফলাফল বের করে JSON বানায় এবং MongoDB-তে সংরক্ষণ করে। একই responsive পেজে কারিকুলাম ও রোল নম্বর দিয়ে খুঁজলে ওই শিক্ষার্থীর database-এ থাকা সব semester/session-এর ফলাফল একসঙ্গে দেখা যায়।
+Browser থেকে PDF আপলোড করলে Python parser PDF থেকে ফলাফল বের করে JSON বানায় এবং MongoDB-তে সংরক্ষণ করে। শিক্ষাক্রম ও রোল নম্বর দিয়ে খুঁজলে ২০২২-২৩ শিক্ষাবর্ষ থেকে সর্বশেষ configured/current শিক্ষাবর্ষ পর্যন্ত শিক্ষার্থীর সব সেমিস্টারের ফলাফল দেখা যায়; সর্বশেষ সেমিস্টার আগে থাকে। ফলাফলের সুন্দর PNG ছবিও নামানো যায়। পোর্টালের লেখা বাংলায়, Hind Siliguri ফন্টসহ।
 
 Frontend সহজে maintain করার জন্য page structure `web/index.html`-এ, সব design ও responsive style `web/css/app.css`-এ, আর login/search/upload interaction `web/js/app.js`-এ রাখা হয়েছে।
+
+## অ্যাপ বা ওয়েবসাইটের জন্য REST API
+
+রেজাল্ট খোঁজার API public; এতে admin token লাগে না। অন্য অ্যাপ থেকে ব্যবহার করতে:
+
+```http
+GET /api/v1/results?roll=123456&curriculum=%E0%A6%A1%E0%A6%BF%E0%A6%AA%E0%A7%8D%E0%A6%B2%E0%A7%8B%E0%A6%AE%E0%A6%BE%20%E0%A6%87%E0%A6%A8%20%E0%A6%87%E0%A6%9E%E0%A7%8D%E0%A6%9C%E0%A6%BF%E0%A6%A8%E0%A6%BF%E0%A7%9F%E0%A6%BE%E0%A6%B0%E0%A6%BF%E0%A6%82
+```
+
+`roll` হবে ৬ সংখ্যার রোল, আর `curriculum` হবে নিচের তালিকার একটির হুবহু মান:
+
+- `ডিপ্লোমা ইন ইঞ্জিনিয়ারিং`
+- `ডিপ্লোমা ইন এগ্রিকালচার/ফিসারিজ/লাইভস্টক/ফরেস্ট্রি`
+- `ডিপ্লোমা ইন টেক্সটাইল ইঞ্জিনিয়ারিং`
+
+উদাহরণ:
+
+```js
+const params = new URLSearchParams({
+  roll: "123456",
+  curriculum: "ডিপ্লোমা ইন ইঞ্জিনিয়ারিং",
+});
+const response = await fetch(`https://আপনার-ডোমেইন/api/v1/results?${params}`);
+const result = await response.json();
+
+if (!response.ok) {
+  throw new Error(result.error.message);
+}
+
+console.log(result.data); // সর্বশেষ সেমিস্টার আগে; সব সংরক্ষিত শিক্ষাবর্ষসহ
+console.log(result.meta.count); // ফলাফলের সংখ্যা
+```
+
+সফল উত্তরের আকৃতি:
+
+```json
+{
+  "data": [
+    {
+      "roll": "123456",
+      "curriculum": "ডিপ্লোমা ইন ইঞ্জিনিয়ারিং",
+      "semester": "৮ম সেমিস্টার",
+      "academicSession": "2022-23",
+      "status": "passed",
+      "gpa": 3.75
+    }
+  ],
+  "meta": {
+    "version": "1",
+    "roll": "123456",
+    "curriculum": "ডিপ্লোমা ইন ইঞ্জিনিয়ারিং",
+    "count": 1
+  }
+}
+```
+
+বাস্তব উত্তরে প্রতিষ্ঠানের নাম/কোড, ফল প্রকাশের তারিখ এবং ফলের ধরন অনুযায়ী `subjects` বা `note`-ও থাকতে পারে। শুধু ২০২২-২৩ থেকে `academicSessions` তালিকায় থাকা সর্বশেষ শিক্ষাবর্ষ পর্যন্ত ফলাফল ফেরত আসে; `meta.sessionFrom` ও `meta.sessionThrough` সীমানা জানায়। ফলের `status` মান `passed`, `failed`, `withheld` অথবা `cancelled`; এই স্থিতিশীল মানগুলো অপরিবর্তিত থাকবে। ভুল ইনপুটে `400`, ফল না পেলে `404`, এবং সার্ভার/সময়সীমার সমস্যায় যথাক্রমে `500`/`503` আসে; ত্রুটির কাঠামো `{ "error": { "code": "...", "message": "..." } }`। CORS সব origin-এর জন্য চালু, প্রতি IP-তে API-র সীমা মিনিটে ৬০টি অনুরোধ; পুরো সার্ভারের সর্বোচ্চ সীমা মিনিটে ১২০টি। ফলের তথ্য সংবেদনশীল হওয়ায় response-এ `Cache-Control: no-store` থাকে। পুরোনো `/results?roll=...&curriculum=...` endpoint আগের JSON array আকারে সচল আছে, এবং তাতেও একই শিক্ষাবর্ষের সীমা প্রযোজ্য।
 
 ## লোকালে চালান
 
